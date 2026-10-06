@@ -1,0 +1,533 @@
+:root {
+  --bg: #efeae2;
+  --bg-deep: #e4ddd2;
+  --card: #fbf8f3;
+  --ink: #1c1916;
+  --muted: #5e564e;
+  --line: #ddd4c8;
+  --green: #1e6b45;
+  --green-deep: #154e32;
+  --green-soft: #e4f2ea;
+  --page: 42.5rem;
+  --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: "Segoe UI", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.45;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+#app {
+  width: min(100%, var(--page));
+  margin: 0 auto;
+  padding: 1.35rem 1.25rem 2.5rem;
+}
+
+#app.session,
+#app.detail {
+  padding-bottom: 7rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+h1 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.9rem, 4vw, 2.35rem);
+  line-height: 1.15;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.top h1 {
+  margin: 0;
+}
+
+.lede,
+.hint,
+.when,
+.names,
+.kicker,
+.footnote,
+.back {
+  color: var(--muted);
+}
+
+.lede {
+  margin: 0.7rem 0 0;
+  max-width: 36rem;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.workout-list,
+.stack,
+.form,
+.exercises {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workout-list {
+  margin-top: 1.35rem;
+}
+
+.workout-card,
+.exercise,
+.panel,
+.sheet-frame {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.workout-card {
+  display: block;
+  padding: 1.05rem 1.1rem 1.1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workout-card:hover,
+.day:hover {
+  background: #f3ece3;
+}
+
+.workout-card h2,
+.exercise h2 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.meta {
+  margin: 0.3rem 0 0;
+  font-weight: 600;
+}
+
+.names,
+.when,
+.rx,
+.cue-small {
+  margin: 0.28rem 0 0;
+}
+
+.when.done {
+  color: var(--green-deep);
+  font-weight: 600;
+}
+
+.add-row {
+  margin: 1rem 0 0;
+}
+
+.add-row a {
+  color: var(--green-deep);
+  font-weight: 650;
+}
+
+.exercises {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+}
+
+.exercise {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr;
+  gap: 0.35rem 0.75rem;
+  padding: 0.95rem 1rem;
+}
+
+.ord {
+  color: var(--green-deep);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding-top: 0.2rem;
+}
+
+.rx {
+  font-weight: 650;
+}
+
+.cue-small {
+  color: var(--muted);
+}
+
+.button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.4rem;
+  padding: 0.8rem 1.1rem;
+  border: 0;
+  border-radius: 14px;
+  background: var(--green);
+  color: #f4fff8;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--green-deep);
+}
+
+.button.ghost {
+  width: auto;
+  min-height: 2.75rem;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid #cfc6ba;
+}
+
+.top .button.ghost {
+  background: var(--card);
+}
+
+.button.ghost:hover {
+  background: var(--bg-deep);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.stack {
+  margin-top: 1.4rem;
+}
+
+.stack .button.ghost {
+  width: 100%;
+}
+
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 1.6rem 0 calc(0.85rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 58%, rgba(239, 234, 226, 0));
+  pointer-events: none;
+}
+
+.dock-inner {
+  width: min(100%, var(--page));
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  pointer-events: auto;
+}
+
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 4px;
+  background: #e3dbd0;
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+.session-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.pill {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green-deep);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.kicker {
+  margin: 1rem 0 0;
+  text-align: center;
+}
+
+.session h1 {
+  margin-top: 0.15rem;
+  text-align: center;
+}
+
+.sheet-frame {
+  display: grid;
+  place-items: center;
+  margin-top: 0.9rem;
+  overflow: hidden;
+}
+
+.sheet-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 58vh;
+  object-fit: contain;
+  background: white;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.reps-num {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(6.5rem, 32vw, 9rem);
+  line-height: 0.8;
+  letter-spacing: -0.045em;
+}
+
+.reps-label {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.cue {
+  margin: 0.9rem auto 0;
+  max-width: 22rem;
+  text-align: center;
+  font-size: 1.28rem;
+  line-height: 1.35;
+}
+
+.banner {
+  margin: 0 0 0.7rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: #f8e8e2;
+  color: #6e2c1c;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 650;
+}
+
+input[type="text"],
+input[type="file"] {
+  font-weight: 500;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+
+.form {
+  margin-top: 1.1rem;
+}
+
+.hint code,
+.footnote code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.88em;
+}
+
+.cal-nav {
+  display: grid;
+  grid-template-columns: 2.75rem 1fr 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.cal-nav h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.7rem;
+}
+
+.icon-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.icon-button:hover {
+  background: var(--bg-deep);
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.weekdays {
+  margin: 1rem 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.day {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.day.blank {
+  cursor: default;
+}
+
+.day.has {
+  background: var(--green);
+  color: #f4fff8;
+  font-weight: 700;
+}
+
+.day.has:hover {
+  background: var(--green-deep);
+}
+
+.day.today {
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.day.selected {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.panel {
+  margin-top: 1rem;
+  padding: 0.95rem 1rem 0.4rem;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+}
+
+.log-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.log-list p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+}
+
+.remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.footnote {
+  font-size: 0.9rem;
+}
+
+.empty {
+  margin-top: 1.4rem;
+  padding: 1.1rem;
+  border: 1px dashed #cfc6ba;
+  border-radius: 18px;
+}
+
+.empty h2 {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--green-deep);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

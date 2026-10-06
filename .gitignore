@@ -1,0 +1,3 @@
+__pycache__/
+*.py[cod]
+data/completions.json.tmp
