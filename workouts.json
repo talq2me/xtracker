@@ -1,0 +1,47 @@
+[
+  {
+    "id": "workout - posture 6w",
+    "exercises": [
+      {
+        "order": 1,
+        "name": "Chin Tuck",
+        "sets": 2,
+        "reps": 10,
+        "qualifier": "",
+        "notes": "5s hold each rep 10s rest between sets",
+        "file": "01 - Chin Tuck - 2sets10reps-5s hold each rep 10s rest between sets.png",
+        "unparsed": false
+      },
+      {
+        "order": 2,
+        "name": "Wall Slides",
+        "sets": 2,
+        "reps": 10,
+        "qualifier": "",
+        "notes": "slow controlled",
+        "file": "02 - Wall Slides - 2sets10reps-slow controlled.png",
+        "unparsed": false
+      },
+      {
+        "order": 3,
+        "name": "Glute Bridge",
+        "sets": 2,
+        "reps": 12,
+        "qualifier": "",
+        "notes": "2s squeeze at top",
+        "file": "03 - Glute Bridge - 2sets12reps-2s squeeze at top.png",
+        "unparsed": false
+      },
+      {
+        "order": 4,
+        "name": "Dead bug",
+        "sets": 2,
+        "reps": 6,
+        "qualifier": "per side",
+        "notes": "slow controlled",
+        "file": "04 - Dead bug - 2sets6reps per side - slow controlled.png",
+        "unparsed": false
+      }
+    ]
+  }
+]

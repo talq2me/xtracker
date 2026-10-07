@@ -2,13 +2,19 @@
 
 A small workout app. Each folder in `Images` is a workout. Each image is an exercise. The file name holds the order, sets, reps, and any extra cue.
 
-## Run
+## Open it
+
+On your phone, open https://talq2me.github.io/xtracker/
+
+The first time, choose **Connect this phone** and paste a GitHub token that can edit this repo. Finished workouts are then saved from the phone. The token stays in that browser.
+
+On this computer you can still run:
 
 ```bash
 python server.py
 ```
 
-Open the address it prints, usually http://127.0.0.1:8765.
+and open http://127.0.0.1:8765.
 
 ## Add a workout
 

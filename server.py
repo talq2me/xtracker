@@ -128,6 +128,14 @@ def parse_exercise(filename: str, fallback_order: int) -> dict:
     }
 
 
+def write_workouts_manifest() -> None:
+    payload = json.dumps(list_workouts(), indent=2) + "\n"
+    path = ROOT / "workouts.json"
+    if path.exists() and path.read_text(encoding="utf-8") == payload:
+        return
+    path.write_text(payload, encoding="utf-8")
+
+
 def list_workouts() -> list[dict]:
     root = images_dir()
     if not root.is_dir():
@@ -428,10 +436,11 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         parts = [unquote(part) for part in parsed.path.split("/") if part]
         if parsed.path in {"/", "/index.html"}:
-            self.send_file(PUBLIC / "index.html", STATIC_TYPES["index.html"])
+            self.send_file(ROOT / "index.html", STATIC_TYPES["index.html"])
             return
-        if len(parts) == 1 and parts[0] in {"styles.css", "app.js"}:
-            self.send_file(PUBLIC / parts[0], STATIC_TYPES[parts[0]])
+        if len(parts) == 1 and parts[0] in {"styles.css", "app.js", "workouts.json"}:
+            content_type = STATIC_TYPES.get(parts[0], "application/json; charset=utf-8")
+            self.send_file(ROOT / parts[0], content_type)
             return
         if parsed.path == "/favicon.ico":
             self.send_response(204)
@@ -566,6 +575,7 @@ def serve(preferred: int) -> None:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not DATA_FILE.exists():
         DATA_FILE.write_text("[]\n", encoding="utf-8")
+    write_workouts_manifest()
     httpd = None
     port = preferred
     for port in range(preferred, preferred + 20):

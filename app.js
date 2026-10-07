@@ -90,6 +90,7 @@ function parseRoute() {
   const head = parts[0] ? decodePart(parts[0]) : "home";
   const arg = parts[1] ? decodePart(parts.slice(1).join("/")) : "";
   if (head === "calendar") return { name: "calendar" };
+  if (head === "settings") return { name: "settings" };
   if (head === "new") return { name: "new" };
   if (head === "done") return { name: "done" };
   if (head === "workout") return { name: "detail", workout: arg };
@@ -110,8 +111,167 @@ async function getJSON(url, options) {
   return data;
 }
 
+const HOSTED = location.hostname.endsWith("github.io");
+const GITHUB = { owner: "talq2me", repo: "xtracker", branch: "main" };
+const TOKEN_KEY = "xtracker-github-token";
+let hostedFresh = false;
+
+function githubToken() {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+function githubHeaders() {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  const token = githubToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+function encodeGitPath(path) {
+  return path.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const size = 0x8000;
+  for (let index = 0; index < bytes.length; index += size) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + size));
+  }
+  return btoa(binary);
+}
+
+function textToBytes(text) {
+  return new TextEncoder().encode(text);
+}
+
+async function githubFile(path) {
+  const response = await fetch(`https://api.github.com/repos/${GITHUB.owner}/${GITHUB.repo}/contents/${encodeGitPath(path)}?ref=${GITHUB.branch}`, {
+    headers: githubHeaders(),
+  });
+  if (response.status === 404) return { text: "", sha: "" };
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Could not read from GitHub.");
+  const text = new TextDecoder().decode(Uint8Array.from(atob(String(data.content || "").replace(/\s/g, "")), (char) => char.charCodeAt(0)));
+  return { text, sha: data.sha || "" };
+}
+
+async function githubWrite(path, bytes, message, sha) {
+  if (!githubToken()) {
+    throw new Error("Connect this phone to GitHub before saving.");
+  }
+  const response = await fetch(`https://api.github.com/repos/${GITHUB.owner}/${GITHUB.repo}/contents/${encodeGitPath(path)}`, {
+    method: "PUT",
+    headers: { ...githubHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      content: bytesToBase64(bytes),
+      branch: GITHUB.branch,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "GitHub did not save the change.");
+  return data.content?.sha || "";
+}
+
+function parseSpec(spec) {
+  const match = String(spec).trim().match(/^(\d+)\s*sets?\s*(\d+)\s*reps?\b\s*([\s\S]*)$/i);
+  if (!match) return null;
+  const rest = match[3].trim();
+  let qualifier = "";
+  let notes = "";
+  if (rest.startsWith("-")) notes = rest.replace(/^-+/, "").trim();
+  else if (rest.includes(" - ")) {
+    const splitAt = rest.indexOf(" - ");
+    qualifier = rest.slice(0, splitAt).trim();
+    notes = rest.slice(splitAt + 3).trim();
+  } else if (rest.includes("-")) {
+    const inline = rest.match(/^(.*?)\s*-\s*(.+)$/);
+    if (inline) {
+      qualifier = inline[1].trim();
+      notes = inline[2].trim();
+    } else qualifier = rest;
+  } else if (rest) qualifier = rest;
+  return { sets: Number(match[1]), reps: Number(match[2]), qualifier, notes };
+}
+
+function parseExercise(filename, fallbackOrder) {
+  const stem = filename.replace(/\.[^.]+$/, "").trim();
+  const parts = stem.split(" - ").map((part) => part.trim());
+  let order = fallbackOrder;
+  let name = stem;
+  let spec = "";
+  let extra = [];
+  if (parts[0] && /^\d+$/.test(parts[0])) {
+    order = Number(parts[0]);
+    if (parts.length > 1) name = parts[1];
+    if (parts.length > 2) {
+      spec = parts[2];
+      extra = parts.slice(3);
+    }
+  }
+  const parsed = spec ? parseSpec(spec) : null;
+  if (!parsed) {
+    return {
+      order,
+      name,
+      sets: 1,
+      reps: null,
+      qualifier: "",
+      notes: [spec, ...extra].filter(Boolean).join(" - "),
+      file: filename,
+      unparsed: true,
+    };
+  }
+  let notes = parsed.notes;
+  if (extra.length) notes = [notes, extra.join(" - ")].filter(Boolean).join(" — ");
+  return {
+    order,
+    name,
+    sets: parsed.sets,
+    reps: parsed.reps,
+    qualifier: parsed.qualifier,
+    notes,
+    file: filename,
+    unparsed: false,
+  };
+}
+
+async function loadWorkouts() {
+  if (!HOSTED) return getJSON("/api/workouts");
+  try {
+    const file = await githubFile("workouts.json");
+    if (file.text) return JSON.parse(file.text);
+  } catch {
+    /* The published file is the backup if GitHub's API is busy. */
+  }
+  const response = await fetch("workouts.json", { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load workouts.");
+  return response.json();
+}
+
+async function loadCompletions() {
+  if (!HOSTED) return getJSON("/api/completions");
+  try {
+    const file = await githubFile("data/completions.json");
+    const items = file.text ? JSON.parse(file.text) : [];
+    items.sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1));
+    return items;
+  } catch {
+    const response = await fetch("data/completions.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load the workout log.");
+    return response.json();
+  }
+}
+
 function imageUrl(workout, file) {
-  return `/media/${encodeURIComponent(workout)}/${encodeURIComponent(file)}`;
+  const workoutPart = encodeURIComponent(workout);
+  const filePart = encodeURIComponent(file);
+  if (!HOSTED) return `/media/${workoutPart}/${filePart}`;
+  return `https://raw.githubusercontent.com/${GITHUB.owner}/${GITHUB.repo}/${GITHUB.branch}/Images/${workoutPart}/${filePart}`;
 }
 
 function buildSteps(exercises) {
@@ -222,6 +382,7 @@ function render() {
 
 function titleFor(route) {
   if (route.name === "calendar") return "Calendar · xTracker";
+  if (route.name === "settings") return "Connect · xTracker";
   if (route.name === "new") return "Add a workout · xTracker";
   if (route.name === "done") return "Workout saved · xTracker";
   if (route.name === "detail" || route.name === "session") {
@@ -236,6 +397,7 @@ function view(route) {
     return `<h1>xTracker</h1><p class="banner">${esc(state.loadError)}</p>`;
   }
   if (route.name === "calendar") return renderCalendar();
+  if (route.name === "settings") return renderSettings();
   if (route.name === "new") return renderNew();
   if (route.name === "done") return renderDone();
   if (route.name === "detail") return renderDetail(route.workout);
@@ -274,7 +436,8 @@ function renderHome() {
     <p class="lede">${esc(logged)}</p>
     <div class="workout-list">${cards}</div>
     ${empty}
-    <p class="add-row"><a href="#/new">Add a workout</a></p>`;
+    <p class="add-row"><a href="#/new">Add a workout</a></p>
+    ${HOSTED ? `<p class="add-row"><a href="#/settings">${githubToken() ? "GitHub connected" : "Connect this phone"}</a></p>` : ""}`;
 }
 
 function renderDetail(workoutId) {
@@ -348,6 +511,7 @@ function renderSession(workoutId) {
     ${cue}
     <div class="dock"><div class="dock-inner">
       ${error}
+      ${HOSTED && !githubToken() && state.error ? `<p class="hint"><a href="#/settings">Connect this phone</a> so the workout can be saved.</p>` : ""}
       <button type="button" class="button" data-action="advance" ${state.saving ? "disabled" : ""}>
         ${state.saving ? "Saving…" : esc(label)}
       </button>
@@ -372,6 +536,27 @@ function renderDone() {
       <a class="button" href="#/calendar">Calendar</a>
       <a class="button ghost" href="#/">All workouts</a>
     </div>`;
+}
+
+function renderSettings() {
+  const saved = Boolean(githubToken());
+  const error = state.error ? `<p class="banner">${esc(state.error)}</p>` : "";
+  return `<a class="back" href="#/">← Workouts</a>
+    <h1>Connect this phone</h1>
+    <p class="lede">Finished workouts are saved to the GitHub repo. The token stays in this browser. It is not stored in the project.</p>
+    <ol class="hint">
+      <li>Create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">fine-grained token</a>.</li>
+      <li>Limit it to the <strong>xtracker</strong> repository.</li>
+      <li>Set Contents to Read and write, then paste the token here.</li>
+    </ol>
+    <form class="form" id="token-form">
+      ${error}
+      <label>GitHub token
+        <input name="token" type="password" autocomplete="off" placeholder="${saved ? "A token is already saved" : "github_pat_..."}">
+      </label>
+      <button class="button" type="submit">Save token</button>
+    </form>
+    ${saved ? `<p class="add-row"><button type="button" class="remove" data-action="forget-token">Remove token from this phone</button></p>` : ""}`;
 }
 
 function renderNew() {
@@ -455,12 +640,14 @@ function missing() {
 }
 
 async function refreshForRoute(route) {
-  if (["home", "detail", "session", "done", "new"].includes(route.name)) {
-    state.workouts = await getJSON("/api/workouts");
+  if (HOSTED && hostedFresh) return;
+  if (["home", "detail", "session", "done", "new", "settings"].includes(route.name)) {
+    state.workouts = await loadWorkouts();
   }
-  if (["home", "calendar", "done", "detail"].includes(route.name)) {
-    state.completions = await getJSON("/api/completions");
+  if (["home", "calendar", "done", "detail", "settings"].includes(route.name)) {
+    state.completions = await loadCompletions();
   }
+  if (HOSTED) hostedFresh = true;
 }
 
 async function loadAll() {
@@ -468,7 +655,9 @@ async function loadAll() {
     await refreshForRoute(parseRoute());
     state.loadError = "";
   } catch {
-    state.loadError = "Could not load workouts. Start the app with python server.py and refresh.";
+    state.loadError = HOSTED
+      ? "Could not load workouts from GitHub."
+      : "Could not load workouts. Start the app with python server.py and refresh.";
   }
   state.ready = true;
   render();
@@ -492,15 +681,17 @@ async function finish(workoutId) {
   state.error = "";
   render();
   try {
-    const saved = await getJSON("/api/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        workout: workoutId,
-        completedAt: new Date().toISOString(),
-        completedOn: todayISO(),
-      }),
-    });
+    const saved = HOSTED
+      ? await saveHostedCompletion(workoutId)
+      : await getJSON("/api/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workout: workoutId,
+          completedAt: new Date().toISOString(),
+          completedOn: todayISO(),
+        }),
+      });
     sessionStorage.setItem("xtracker-push", JSON.stringify({
       pushed: Boolean(saved.pushed),
       pushError: saved.pushError || "",
@@ -524,10 +715,37 @@ async function removeCompletion(id) {
     return;
   }
   state.confirmRemove = "";
-  const result = await getJSON(`/api/completions/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const result = HOSTED
+    ? await removeHostedCompletion(id)
+    : await getJSON(`/api/completions/${encodeURIComponent(id)}`, { method: "DELETE" });
   state.error = result.pushed ? "" : (result.pushError || "Removed on this computer. GitHub push failed.");
-  state.completions = await getJSON("/api/completions");
+  if (!HOSTED) state.completions = await getJSON("/api/completions");
   render();
+}
+
+async function saveHostedCompletion(workoutId) {
+  const file = await githubFile("data/completions.json");
+  const items = file.text ? JSON.parse(file.text) : [];
+  const record = {
+    id: crypto.randomUUID().replace(/-/g, ""),
+    workout: workoutId,
+    completedAt: new Date().toISOString(),
+    completedOn: todayISO(),
+  };
+  items.push(record);
+  items.sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1));
+  await githubWrite("data/completions.json", textToBytes(`${JSON.stringify(items, null, 2)}\n`), "Log a completed workout", file.sha);
+  state.completions = items;
+  return { ...record, pushed: true, pushError: "" };
+}
+
+async function removeHostedCompletion(id) {
+  const file = await githubFile("data/completions.json");
+  const items = file.text ? JSON.parse(file.text) : [];
+  const kept = items.filter((item) => item.id !== id);
+  await githubWrite("data/completions.json", textToBytes(`${JSON.stringify(kept, null, 2)}\n`), "Remove a logged workout", file.sha);
+  state.completions = kept;
+  return { ok: true, pushed: true, pushError: "" };
 }
 
 function readPushResult() {
@@ -588,6 +806,12 @@ app.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (action === "forget-token") {
+    localStorage.removeItem(TOKEN_KEY);
+    state.error = "";
+    render();
+    return;
+  }
   if (action === "remove") {
     void removeCompletion(button.dataset.id).catch((error) => {
       state.error = error.message || "Could not remove that entry.";
@@ -598,6 +822,20 @@ app.addEventListener("click", (event) => {
 
 app.addEventListener("submit", (event) => {
   const form = event.target;
+  if (form.id === "token-form") {
+    event.preventDefault();
+    const token = new FormData(form).get("token");
+    const value = String(token || "").trim();
+    if (!value) {
+      state.error = "Paste the GitHub token first.";
+      render();
+      return;
+    }
+    localStorage.setItem(TOKEN_KEY, value);
+    state.error = "";
+    location.hash = "#/";
+    return;
+  }
   if (form.id !== "add-form") return;
   event.preventDefault();
   void saveWorkout(form);
@@ -611,6 +849,40 @@ document.addEventListener("keydown", (event) => {
   if (button && !button.disabled) button.click();
 });
 
+async function saveHostedWorkout(data) {
+  const name = String(data.get("name") || "").trim();
+  const files = [...data.getAll("files")].filter((file) => file && file.name && file.size);
+  if (!name || /[<>:"|?*\\/]/.test(name) || name === "." || name === "..") {
+    throw new Error("Use a plain folder name without slashes.");
+  }
+  if (!files.length) throw new Error("Choose at least one exercise image.");
+  for (const file of files) {
+    const filename = file.name.split(/[/\\]/).pop();
+    if (!filename || /[<>:"|?*\\/]/.test(filename)) throw new Error(`Cannot use the file name ${filename}.`);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const existing = await githubFile(`Images/${name}/${filename}`);
+    await githubWrite(`Images/${name}/${filename}`, bytes, `Add exercise image ${filename}`, existing.sha);
+  }
+  const exercises = files.map((file, index) => parseExercise(file.name.split(/[/\\]/).pop(), index + 1));
+  exercises.sort((a, b) => a.order - b.order || a.file.localeCompare(b.file));
+  const current = await githubFile("workouts.json");
+  const workouts = current.text ? JSON.parse(current.text) : [];
+  const workout = { id: name, exercises };
+  const index = workouts.findIndex((item) => item.id === name);
+  if (index >= 0) {
+    const byFile = new Map(workouts[index].exercises.map((exercise) => [exercise.file, exercise]));
+    exercises.forEach((exercise) => byFile.set(exercise.file, exercise));
+    workout.exercises = [...byFile.values()].sort((a, b) => a.order - b.order || a.file.localeCompare(b.file));
+    workouts[index] = workout;
+  } else {
+    workouts.push(workout);
+  }
+  workouts.sort((a, b) => a.id.localeCompare(b.id, undefined, { sensitivity: "base" }));
+  await githubWrite("workouts.json", textToBytes(`${JSON.stringify(workouts, null, 2)}\n`), `Add workout ${name}`, current.sha);
+  state.workouts = workouts;
+  return workout;
+}
+
 async function saveWorkout(form) {
   if (state.saving) return;
   const data = new FormData(form);
@@ -618,7 +890,7 @@ async function saveWorkout(form) {
   state.error = "";
   render();
   try {
-    const workout = await getJSON("/api/workouts", { method: "POST", body: data });
+    const workout = HOSTED ? await saveHostedWorkout(data) : await getJSON("/api/workouts", { method: "POST", body: data });
     state.saving = false;
     location.hash = `#/workout/${encodeURIComponent(workout.id)}`;
   } catch (error) {
